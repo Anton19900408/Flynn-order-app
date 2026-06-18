@@ -1,0 +1,9 @@
+{
+  "name": "Flynn Service Truck Orders",
+  "short_name": "Flynn Orders",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#0b4f8a",
+  "icons": []
+}

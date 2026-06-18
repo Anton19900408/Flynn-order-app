@@ -2,33 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Flynn Truck Order App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flynn Service Truck Orders</title>
 <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b4f8a">
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;color:#111}
-header{background:#0b4f8a;color:white;padding:16px;text-align:center;font-size:20px;font-weight:700}
-main{padding:14px;max-width:680px;margin:auto}
-.card{background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #0001}
+header{background:#0b4f8a;color:white;padding:16px;text-align:center;font-size:20px;font-weight:700;position:sticky;top:0;z-index:10}
+main{padding:12px;max-width:760px;margin:auto}
+.card{background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px #0001}
+h2,h3{margin:4px 0 12px}
 label{font-weight:700;font-size:14px;margin-top:10px;display:block}
 input,select,textarea,button{width:100%;padding:12px;margin-top:6px;border:1px solid #ccd;border-radius:10px;font-size:16px;box-sizing:border-box}
-button{background:#0b4f8a;color:white;border:0;font-weight:700;margin-top:14px}
+button{background:#0b4f8a;color:white;border:0;font-weight:700;margin-top:12px}
+button.secondary{background:#666}
+button.danger{background:#a33}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.item{display:flex;gap:8px;align-items:center;border-bottom:1px solid #eee;padding:8px 0}
-.item input[type=number]{width:90px}
-.item input[type=checkbox]{width:24px;height:24px}
-.small{font-size:12px;color:#555}
-.order{border-left:4px solid #0b4f8a;padding-left:10px;margin:10px 0}
+.item{display:grid;grid-template-columns:30px 1fr 90px;gap:8px;align-items:center;border-bottom:1px solid #eee;padding:9px 0}
+.item input[type=checkbox]{width:24px;height:24px;margin:0}
+.item input[type=number]{margin:0}
+.small{font-size:12px;color:#555;line-height:1.4}
+.order{border-left:4px solid #0b4f8a;padding:10px;margin:10px 0;background:#f8fbff;border-radius:8px}
+.status{font-weight:bold}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.tabs button{margin:0;background:#ddd;color:#111}
+.tabs button.active{background:#0b4f8a;color:white}
+.hidden{display:none}
 </style>
 </head>
 <body>
-<header>Flynn Service Truck Order</header>
+<header>Flynn Service Truck Orders</header>
 <main>
+<div class="tabs">
+<button id="tabOrder" class="active" onclick="showTab('order')">New Order</button>
+<button id="tabWarehouse" onclick="showTab('warehouse')">Warehouse</button>
+</div>
+
+<section id="orderScreen">
 <div class="card">
+<h2>Foreman Order Form</h2>
 <label>Foreman name</label><input id="foreman" placeholder="Name">
-<div class="row"><div><label>Truck #</label><input id="truck" placeholder="Truck"></div><div><label>Priority</label><select id="priority"><option>Normal</option><option>Urgent</option></select></div></div>
+<div class="row"><div><label>Truck #</label><input id="truck" placeholder="Truck #"></div><div><label>Priority</label><select id="priority"><option>Normal</option><option>Urgent</option></select></div></div>
 <label>Job site</label><input id="site" placeholder="Address / Site">
 <label>Warehouse email</label><input id="email" type="email" value="warehouse@flynncompanies.com">
+<label>Photo note</label><input id="photo" type="file" accept="image/*" capture="environment">
+<p class="small">Photo is stored only on phone. When email opens, attach photo manually if needed.</p>
 <label>Notes</label><textarea id="notes" rows="2" placeholder="Extra notes"></textarea>
 </div>
 
@@ -38,26 +56,46 @@ button{background:#0b4f8a;color:white;border:0;font-weight:700;margin-top:14px}
 <div id="items"></div>
 <button onclick="saveOrder()">Save order on phone</button>
 <button onclick="sendEmail()">Send order by email</button>
-<button onclick="downloadCSV()">Download CSV</button>
-<p class="small">Works on phone. Orders are saved in this browser until cleared.</p>
+<button class="secondary" onclick="downloadCSV()">Download CSV for warehouse</button>
 </div>
 
 <div class="card">
-<h3>Saved Orders</h3>
+<h3>My saved orders</h3>
 <div id="orders"></div>
-<button onclick="clearOrders()" style="background:#777">Clear saved orders</button>
+<button class="danger" onclick="clearOrders()">Clear saved orders</button>
 </div>
+</section>
+
+<section id="warehouseScreen" class="hidden">
+<div class="card">
+<h2>Warehouse Dashboard</h2>
+<p class="small">Shows orders saved on this phone. For real-time shared warehouse dashboard, use Microsoft Power Apps / SharePoint / Firebase.</p>
+<div id="warehouseOrders"></div>
+<button class="secondary" onclick="downloadCSV()">Export all orders CSV</button>
+</div>
+</section>
 </main>
+
 <script>
 const DATA = {"EPDM Materials": ["EPDM Seam Tape 3in", "EPDM Seam Tape 6in", "EPDM Cover Strip", "EPDM Uncured Flashing", "EPDM Pipe Boots", "EPDM Primer", "EPDM Cleaner", "Lap Sealant", "Water Cut-Off Mastic", "Water Block Mastic", "EPDM Patches"], "SBS / Modified Bitumen": ["Bakor QuickDry Primer", "Bakor Plastic Cement", "SBS Cap Sheet", "SBS Base Sheet", "SBS Repair Patches"], "TPO Materials": ["TPO Cleaner", "TPO Primer", "TPO Cover Tape", "TPO Patches", "TPO Universal Corners", "TPO Pipe Boots"], "Sealants / Coatings": ["Chemlink M1 White", "Chemlink M1 Grey", "Chemlink M1 Black", "NP1 Sealant", "LePage PL Premium", "Karnak Blue", "Karnak Yellow", "ALSAN Flashing White", "ALSAN Flashing Grey", "ALSAN RS 230 Field", "ALSAN RS Fleece", "ALSAN Cleaner"], "Drain Repairs": ["Retrofit Drain Inserts", "Drain Domes", "Drain Bolts", "Compression Seals", "Hose Clamps"], "Fasteners": ["HD Fasteners", "Plates", "Tek Screws", "Pancake Screws", "Washers", "Zip Ties"], "Cleaning Supplies": ["Rags", "Green Scrub Pads", "Black Mesh Pads", "Green Mesh Pads", "Paper Towels", "Garbage Bags", "Nitrile Gloves"], "Tools / Equipment": ["Impact Driver", "Batteries", "Battery Charger", "Tape Measure", "Chalk Line", "Markers", "Utility Knife", "Hook Blades", "Straight Blades", "Caulking Gun", "Probe", "Membrane Roller (Steel Roller)", "Seam Roller", "Hand Roller for Adhesive", "Silicone Brushes", "Glue Brushes"], "Safety Equipment": ["Full Body Harness", "6 ft Shock Absorbing Lanyard", "SRL (Self Retracting Lifeline)", "Vertical Lifeline Rope", "Rope Grab", "Carabiners", "Anchor Sling", "Roof Anchor", "Warning Line Flags", "Safety Vest", "Hard Hat", "Safety Glasses", "Cut Resistant Gloves", "First Aid Kit", "Fire Extinguisher", "Rescue Kit", "Traffic Cones", "Caution Tape", "Headlamp / Flashlight", "Extension Ladder", "Step Ladder", "Ladder Stabilizer", "Ladder Tie-Off Strap"]};
 const category = document.getElementById('category');
 const itemsDiv = document.getElementById('items');
 Object.keys(DATA).forEach(c=>category.add(new Option(c,c)));
+
+function showTab(t){
+ document.getElementById('orderScreen').classList.toggle('hidden', t!=='order');
+ document.getElementById('warehouseScreen').classList.toggle('hidden', t!=='warehouse');
+ document.getElementById('tabOrder').classList.toggle('active', t==='order');
+ document.getElementById('tabWarehouse').classList.toggle('active', t==='warehouse');
+ renderOrders();
+}
+
 function renderItems(){
   itemsDiv.innerHTML='';
-  DATA[category.value].forEach((name,i)=>{
+  DATA[category.value].forEach(name=>{
     const div=document.createElement('div'); div.className='item';
-    div.innerHTML=`<input type="checkbox" data-name="${name}"><span style="flex:1">${name}</span><input type="number" min="0" placeholder="Qty" data-qty="${name}">`;
+    const safe = name.replaceAll(' ','_').replaceAll('/','_').replaceAll('(','').replaceAll(')','');
+    div.innerHTML=`<input id="chk_${safe}" type="checkbox" data-name="${name}"><label for="chk_${safe}" style="margin:0;font-weight:400">${name}</label><input type="number" min="0" placeholder="Qty" data-qty="${name}">`;
     itemsDiv.appendChild(div);
   });
 }
@@ -70,19 +108,19 @@ function selectedItems(){
     return {category:category.value,item:name,qty};
   });
 }
-function getOrders(){return JSON.parse(localStorage.getItem('flynnOrders')||'[]')}
-function setOrders(o){localStorage.setItem('flynnOrders',JSON.stringify(o)); renderOrders();}
+function getOrders(){return JSON.parse(localStorage.getItem('flynnOrdersV2')||'[]')}
+function setOrders(o){localStorage.setItem('flynnOrdersV2',JSON.stringify(o)); renderOrders();}
 function buildOrder(){
-  return {id:Date.now(),date:new Date().toLocaleString(),foreman:foreman.value,truck:truck.value,site:site.value,priority:priority.value,notes:notes.value,items:selectedItems(),status:"New"};
+  return {id:Date.now(),date:new Date().toLocaleString(),foreman:foreman.value.trim(),truck:truck.value.trim(),site:site.value.trim(),priority:priority.value,notes:notes.value.trim(),photo:photo.files[0]?.name || "",items:selectedItems(),status:"New"};
 }
 function saveOrder(){
   const order=buildOrder();
   if(order.items.length===0){alert('Select at least one item');return;}
   const orders=getOrders(); orders.unshift(order); setOrders(orders);
-  alert('Order saved');
+  alert('Order saved on phone');
 }
 function orderText(order){
-  let t=`Flynn Service Truck Order\nDate: ${order.date}\nForeman: ${order.foreman}\nTruck: ${order.truck}\nSite: ${order.site}\nPriority: ${order.priority}\n\nItems:\n`;
+  let t=`Flynn Service Truck Order\nDate: ${order.date}\nForeman: ${order.foreman}\nTruck #: ${order.truck}\nJob site: ${order.site}\nPriority: ${order.priority}\nPhoto file: ${order.photo || 'No photo'}\n\nItems:\n`;
   order.items.forEach(x=>t+=`- ${x.category} | ${x.item} | Qty: ${x.qty}\n`);
   t+=`\nNotes: ${order.notes}\nStatus: ${order.status}`;
   return t;
@@ -90,29 +128,36 @@ function orderText(order){
 function sendEmail(){
   const order=buildOrder();
   if(order.items.length===0){alert('Select at least one item');return;}
+  const saved=getOrders(); saved.unshift(order); setOrders(saved);
   const body=encodeURIComponent(orderText(order));
-  const subject=encodeURIComponent(`Truck Order - ${order.truck} - ${order.foreman}`);
+  const subject=encodeURIComponent(`Truck Order - Truck ${order.truck} - ${order.foreman}`);
   window.location.href=`mailto:${email.value}?subject=${subject}&body=${body}`;
 }
 function downloadCSV(){
-  const rows=[["Date","Foreman","Truck","Site","Priority","Category","Item","Qty","Notes","Status"]];
-  getOrders().forEach(o=>o.items.forEach(x=>rows.push([o.date,o.foreman,o.truck,o.site,o.priority,x.category,x.item,x.qty,o.notes,o.status])));
+  const rows=[["Order ID","Date","Foreman","Truck","Site","Priority","Category","Item","Qty","Notes","Photo","Status"]];
+  getOrders().forEach(o=>o.items.forEach(x=>rows.push([o.id,o.date,o.foreman,o.truck,o.site,o.priority,x.category,x.item,x.qty,o.notes,o.photo,o.status])));
   const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='flynn_orders.csv'; a.click();
 }
+function updateStatus(id,status){
+  const orders=getOrders().map(o=>o.id==id?{...o,status}:o);
+  setOrders(orders);
+}
 function renderOrders(){
   const orders=getOrders();
-  ordersDiv=document.getElementById('orders');
+  const ordersDiv=document.getElementById('orders');
+  const whDiv=document.getElementById('warehouseOrders');
   ordersDiv.innerHTML=orders.length?'':'No saved orders yet.';
+  whDiv.innerHTML=orders.length?'':'No orders yet.';
   orders.forEach(o=>{
-    const div=document.createElement('div'); div.className='order';
-    div.innerHTML=`<b>${o.date} — ${o.foreman} — Truck ${o.truck}</b><br>${o.items.map(i=>i.item+' x '+i.qty).join('<br>')}`;
-    ordersDiv.appendChild(div);
+    const items=o.items.map(i=>`${i.item} x ${i.qty}`).join('<br>');
+    ordersDiv.insertAdjacentHTML('beforeend', `<div class="order"><b>${o.date}</b><br>Foreman: ${o.foreman}<br>Truck: ${o.truck}<br>Site: ${o.site}<br>Priority: ${o.priority}<br><span class="status">Status: ${o.status}</span><br>${items}</div>`);
+    whDiv.insertAdjacentHTML('beforeend', `<div class="order"><b>${o.date} — Truck ${o.truck}</b><br>Foreman: ${o.foreman}<br>${items}<br><label>Status</label><select onchange="updateStatus(${o.id}, this.value)"><option ${o.status==='New'?'selected':''}>New</option><option ${o.status==='Ordered'?'selected':''}>Ordered</option><option ${o.status==='Ready'?'selected':''}>Ready</option><option ${o.status==='Picked Up'?'selected':''}>Picked Up</option><option ${o.status==='Backordered'?'selected':''}>Backordered</option></select></div>`);
   });
 }
-function clearOrders(){if(confirm('Clear all saved orders?'))setOrders([])}
+function clearOrders(){if(confirm('Clear all saved orders on this phone?'))setOrders([])}
 renderOrders();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 </script>
 </body>
 </html>
